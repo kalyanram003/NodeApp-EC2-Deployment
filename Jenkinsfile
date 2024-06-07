@@ -65,6 +65,13 @@ pipeline {
             }
         }
 
+stage('Trivy'){
+steps{
+    sh "trivy image kamran111/valleyjs:latest"
+}
+}
+        
+
         stage('Deploy') {
             steps {
                 script {
