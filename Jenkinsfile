@@ -27,7 +27,7 @@ pipeline {
                 npm install sonarqube-scanner@2.8.0
                 npx sonarqube-scanner \
                     -Dsonar.host.url=http://localhost:9000 \
-                    -Dsonar.login=squ_785e9b47e00763dc0d448e729ce8b18d5aa26b65 \
+                    -Dsonar.login=squ_25dc760f6eb84e28513e99d622696344d79c3ea8 \
                     -Dsonar.projectKey=test-nodejs
                 '''
             }
