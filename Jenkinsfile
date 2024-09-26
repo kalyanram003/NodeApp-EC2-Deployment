@@ -37,7 +37,14 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    // SSH into the AWS EC2 instance and pull the Docker image
+                    // Check if Docker is installed on the EC2 instance
+                    def checkDocker = sh(script: "ssh -o StrictHostKeyChecking=no -i /var/jenkins/workspace/test-key.pem ubuntu@${AWS_EC2_INSTANCE} 'which docker'", returnStatus: true)
+                    
+                    if (checkDocker != 0) {
+                        error("Docker is not installed on the EC2 instance.")
+                    }
+
+                    // Pull the Docker image
                     sh "ssh -o StrictHostKeyChecking=no -i /var/jenkins/workspace/test-key.pem ubuntu@${AWS_EC2_INSTANCE} 'sudo docker pull ${DOCKER_IMAGE_NAME}:${TAG}'"
                     
                     // Stop and remove the existing container, if any
