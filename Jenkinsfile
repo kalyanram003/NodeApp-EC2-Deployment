@@ -2,176 +2,57 @@ pipeline {
     agent any
 
     environment {
-        AWS_REGION = 'us-east-1'
-        EKS_CLUSTER_NAME = 'my-eks-cluster'
-        DOCKER_IMAGE = 'kamran111/valleyjs:latest'
-        DOCKER_CREDENTIALS = 'docker-cred' // Docker Hub credentials in Jenkins
-        AWS_CREDENTIALS = 'aws-credentials'
-        AWS_CLI_VERSION = '2.17.46'
-        EKSCTL_VERSION = '0.190.0'
-        PATH = '/var/lib/jenkins/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin'
-        SCANNER_HOME = tool 'sonar-scanner' // SonarQube Scanner Home
+        AWS_EC2_INSTANCE = '184.72.183.24'
+        DOCKER_HUB_CREDENTIAL_ID = 'DOCKER_HUB_CREDENTIAL_ID'
+        DOCKER_IMAGE_NAME = 'kamran111/nodejs_demo_app'
+        TAG = 'latest'
     }
 
     stages {
-        stage('Clone Repository') {
+        stage('Checkout') {
             steps {
-                git url: 'https://github.com/kamranali111/valley_js.git', branch: 'main'
+                git branch: 'main', url: 'https://github.com/kamranali111/nodejs_demo_app.git'
             }
         }
 
-        stage('Clean Up Old Installations') {
+        stage('Build') {
             steps {
                 script {
-                    sh '''
-                    if [ -d /var/lib/jenkins/aws-cli ]; then
-                        echo "Removing old AWS CLI installation..."
-                        rm -rf /var/lib/jenkins/aws-cli
-                    fi
-                    if [ -f /var/lib/jenkins/bin/eksctl ]; then
-                        echo "Removing old eksctl installation..."
-                        rm -f /var/lib/jenkins/bin/eksctl
-                    fi
-                    '''
+                    // Build Docker image locally
+                    sh "docker build --no-cache -t $DOCKER_IMAGE_NAME:$TAG ."
                 }
             }
         }
 
-        stage('Install Tools') {
+        stage('Push to Docker Hub') {
             steps {
                 script {
-                    sh '''
-                    # Install AWS CLI if not present
-                    if ! command -v aws &> /dev/null; then
-                        echo "Installing AWS CLI..."
-                        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-                        unzip awscliv2.zip -d /var/lib/jenkins/aws-cli
-                        /var/lib/jenkins/aws-cli/aws/install --install-dir /var/lib/jenkins/aws-cli --bin-dir /var/lib/jenkins/bin
-                    else
-                        echo "Updating AWS CLI..."
-                        /var/lib/jenkins/aws-cli/aws/install --install-dir /var/lib/jenkins/aws-cli --bin-dir /var/lib/jenkins/bin --update
-                    fi
-
-                    # Install eksctl if not present
-                    if ! command -v eksctl &> /dev/null; then
-                        echo "Installing eksctl..."
-                        curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_Linux_amd64.tar.gz" | tar xz -C /tmp
-                        mv /tmp/eksctl /var/lib/jenkins/bin/eksctl
-                    else
-                        echo "eksctl already installed."
-                    fi
-
-                    # Verify installations
-                    echo "AWS CLI version:"
-                    aws --version || true
-                    echo "eksctl version:"
-                    eksctl version || true
-                    '''
-                }
-            }
-        }
-
-        stage('Create EKS Cluster') {
-            steps {
-                script {
-                    withCredentials([aws(credentialsId: AWS_CREDENTIALS)]) {
-                        sh '''
-                        # Ensure PATH is set for eksctl
-                        export PATH=/var/lib/jenkins/bin:$PATH
-                        echo "PATH is: $PATH"
-                        echo "Checking if EKS cluster already exists..."
-                        if eksctl get cluster --name $EKS_CLUSTER_NAME --region $AWS_REGION; then
-                            echo "EKS cluster already exists."
-                        else
-                            echo "Creating EKS cluster..."
-                            eksctl create cluster --name $EKS_CLUSTER_NAME --region $AWS_REGION --nodegroup-name standard-workers --node-type t3.medium --nodes 2 --nodes-min 1 --nodes-max 3 --managed
-                        fi
-                        '''
+                    withCredentials([usernamePassword(credentialsId: env.DOCKER_HUB_CREDENTIAL_ID, passwordVariable: 'DOCKER_HUB_PASSWORD', usernameVariable: 'DOCKER_HUB_USERNAME')]) {
+                        // Login to Docker Hub
+                        sh "docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD"
                     }
+                    
+                    // Push the Docker image to Docker Hub
+                    sh "docker push $DOCKER_IMAGE_NAME:$TAG"
                 }
             }
         }
 
-        stage('SonarQube Analysis') {
-            steps {
-                withSonarQubeEnv('sonar-server') {
-                    sh ''' 
-                    $SCANNER_HOME/bin/sonar-scanner \
-                    -Dsonar.projectName=ValleyJS \
-                    -Dsonar.projectKey=valleyjs \
-                    -Dsonar.sources=.
-                    '''
-                }
-            }
-        }
-
-        stage('Trivy File System Scan') {
-            steps {
-                sh 'trivy fs --format table -o fs-scan.html .'
-            }
-        }
-
-        stage('Build Docker Image') {
+        stage('Deploy') {
             steps {
                 script {
-                    docker.build(DOCKER_IMAGE)
-                }
-            }
-        }
+                    // SSH into the AWS EC2 instance and pull the Docker image
+                    sh "ssh -o StrictHostKeyChecking=no -i /home/kamran/aws-key.pem ubuntu@${AWS_EC2_INSTANCE} 'sudo docker pull $DOCKER_IMAGE_NAME:$TAG'"
+                    
+                    // Stop and remove the existing container, if any
+                    sh "ssh -o StrictHostKeyChecking=no -i /home/kamran/aws-key.pem ubuntu@${AWS_EC2_INSTANCE} 'sudo docker stop node_app || true && sudo docker rm node_app || true'"
 
-        stage('Trivy Image Scan') {
-            steps {
-                sh 'trivy image --format table -o image-scan.html $DOCKER_IMAGE'
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                script {
-                    withDockerRegistry(credentialsId: DOCKER_CREDENTIALS, url: 'https://index.docker.io/v1/') {
-                        docker.image(DOCKER_IMAGE).push()
-                    }
-                }
-            }
-        }
-
-        stage('Configure AWS CLI and kubectl') {
-            steps {
-                script {
-                    withCredentials([aws(credentialsId: AWS_CREDENTIALS)]) {
-                        sh '''
-                        # Ensure PATH is set for AWS CLI
-                        export PATH=/var/lib/jenkins/bin:$PATH
-                        echo "Running AWS CLI version:"
-                        aws --version
-                        echo "Updating kubeconfig..."
-                        aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER_NAME
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('Deploy to EKS') {
-            steps {
-                script {
-                    sh '''
-                    # Ensure PATH is set for kubectl
-                    export PATH=/var/lib/jenkins/bin:$PATH
-                    echo "Running kubectl version:"
-                    kubectl version --client
-                    echo "Applying Kubernetes manifests..."
-                    kubectl apply -f k8s/deployment.yaml
-                    kubectl apply -f k8s/service.yaml
-                    '''
+                    // Run Docker container on the AWS EC2 instance
+                    sh "ssh -o StrictHostKeyChecking=no -i /home/kamran/aws-key.pem ubuntu@${AWS_EC2_INSTANCE} 'sudo docker run -p 8001:8001 --name node_app -d $DOCKER_IMAGE_NAME:$TAG'"
                 }
             }
         }
     }
 
-    post {
-        always {
-            cleanWs()
-        }
-    }
+
 }
