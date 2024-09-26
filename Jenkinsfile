@@ -38,13 +38,13 @@ pipeline {
             steps {
                 script {
                     // SSH into the AWS EC2 instance and pull the Docker image
-                    sh "ssh -o StrictHostKeyChecking=no -i /home/kamran/aws-key.pem ubuntu@${AWS_EC2_INSTANCE} 'sudo docker pull ${DOCKER_IMAGE_NAME}:${TAG}'"
+                    sh "ssh -o StrictHostKeyChecking=no -i /var/jenkins/workspace/test-key.pem ubuntu@${AWS_EC2_INSTANCE} 'sudo docker pull ${DOCKER_IMAGE_NAME}:${TAG}'"
                     
                     // Stop and remove the existing container, if any
-                    sh "ssh -o StrictHostKeyChecking=no -i /home/kamran/aws-key.pem ubuntu@${AWS_EC2_INSTANCE} 'sudo docker stop node_app || true && sudo docker rm node_app || true'"
+                    sh "ssh -o StrictHostKeyChecking=no -i /var/jenkins/workspace/test-key.pem ubuntu@${AWS_EC2_INSTANCE} 'sudo docker stop node_app || true && sudo docker rm node_app || true'"
 
                     // Run Docker container on the AWS EC2 instance
-                    sh "ssh -o StrictHostKeyChecking=no -i /home/kamran/aws-key.pem ubuntu@${AWS_EC2_INSTANCE} 'sudo docker run -p 8001:8001 --name node_app -d ${DOCKER_IMAGE_NAME}:${TAG}'"
+                    sh "ssh -o StrictHostKeyChecking=no -i /var/jenkins/workspace/test-key.pem ubuntu@${AWS_EC2_INSTANCE} 'sudo docker run -p 3000:3000 --name node_app -d ${DOCKER_IMAGE_NAME}:${TAG}'"
                 }
             }
         }
