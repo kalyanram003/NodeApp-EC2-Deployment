@@ -7,7 +7,7 @@ pipeline {
         DOCKER_IMAGE_NAME = 'kamran111/nodejs_demo_app'         
         TAG = 'latest'         
         SSH_KEY_PATH = '/var/jenkins/workspace/test-key.pem'         
-        SONAR_PROJECT_KEY = 'nodejs_demo_app'
+        SONAR_PROJECT_KEY = 'NodeApp-EC2-Deployment'
         SONAR_SCANNER = 'SonarQubeScanner' // Name of SonarQube Scanner installed in Jenkins
     }      
 
