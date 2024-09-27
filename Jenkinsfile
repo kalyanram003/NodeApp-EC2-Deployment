@@ -8,7 +8,7 @@ pipeline {
         TAG = 'latest'         
         SSH_KEY_PATH = '/var/jenkins/workspace/test-key.pem'         
         SONAR_PROJECT_KEY = 'NodeApp-EC2-Deployment'
-        SONAR_SCANNER = 'SonarQubeScanner' // Name of SonarQube Scanner installed in Jenkins
+        SONAR_SCANNER = 'sonar-scanner' // Name of SonarQube Scanner installed in Jenkins
     }      
 
     stages {         
