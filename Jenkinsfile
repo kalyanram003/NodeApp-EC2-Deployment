@@ -39,6 +39,15 @@ pipeline {
                     docker.build("${DOCKER_IMAGE_NAME}:${TAG}")                 
                 }             
             }         
+        } 
+
+        stage('Trivy Vulnerability Scan') {  // New Stage for Trivy Integration
+            steps {                 
+                script {
+                    // Run Trivy to scan the Docker image
+                    sh "trivy image --exit-code 1 --severity HIGH,CRITICAL ${DOCKER_IMAGE_NAME}:${TAG}"
+                }             
+            }         
         }          
 
         stage('Push Docker Image') {             
