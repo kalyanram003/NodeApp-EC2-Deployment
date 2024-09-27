@@ -12,7 +12,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/kamranali111/nodejs_demo_app.git'
+                git branch: 'main', url: 'https://github.com/kamranali111/NodeApp-EC2-Deployment.git'
             }
         }
 
