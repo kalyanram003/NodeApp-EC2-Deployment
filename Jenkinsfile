@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        AWS_EC2_INSTANCE = '54.164.136.78'
+        AWS_EC2_INSTANCE = '54.175.239.228'
         DOCKER_HUB_CREDENTIAL_ID = 'docker-cred'
         DOCKER_IMAGE_NAME = 'kamran111/nodejs_demo_app'
         TAG = 'latest'
