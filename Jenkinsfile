@@ -100,18 +100,4 @@ pipeline {
         }     
     }      
 
-    post {         
-        always {             
-            // Clean up workspace             
-            cleanWs()         
-        }          
-
-        success {             
-            echo 'Pipeline executed successfully!'         
-        }          
-
-        failure {             
-            echo 'Pipeline failed.'         
-        }     
-    } 
 }
