@@ -45,7 +45,10 @@ pipeline {
             steps {                 
                 script {
                     // Run Trivy to scan the Docker image
-                    sh "trivy image --exit-code 1 --severity HIGH,CRITICAL ${DOCKER_IMAGE_NAME}:${TAG}"
+                    def scanResult = sh(script: "trivy image --exit-code 1 --severity HIGH,CRITICAL ${DOCKER_IMAGE_NAME}:${TAG}", returnStatus: true)
+                    if (scanResult != 0) {
+                        error("Trivy found vulnerabilities in the image. Scan exited with code: ${scanResult}")
+                    }
                 }             
             }         
         }          
