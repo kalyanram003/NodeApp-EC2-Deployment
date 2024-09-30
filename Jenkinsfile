@@ -10,6 +10,7 @@ pipeline {
         SONAR_SCANNER = 'sonar-scanner' // SonarQube Scanner installed in Jenkins
         AWS_CREDENTIALS_ID = 'aws-credentials'  // AWS Credentials ID in Jenkins
         INSTANCE_IP = '' // Declare as environment variable for global access
+        PUBLIC_IP = '' // Variable to store the public IP of the EC2 instance
     }
 
     stages {
@@ -34,23 +35,23 @@ pipeline {
             }
         }
 
-// 2. Terraform Init and Apply
-stage('Terraform Apply') {
-    steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID]]) {
-            script {
-                sh """
-                cd terraform
-                terraform init
-                terraform apply -auto-approve
-                """
-                // Capture the instance IP output and assign it to the environment variable
-                env.INSTANCE_IP = sh(script: "cd terraform && terraform output -raw -no-color instance_ip", returnStdout: true).trim()
-                echo "EC2 Instance IP: ${env.INSTANCE_IP}"
+        // 2. Terraform Init and Apply
+        stage('Terraform Apply') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID]]) {
+                    script {
+                        sh """
+                        cd terraform
+                        terraform init
+                        terraform apply -auto-approve
+                        """
+                        // Capture the instance IP output and assign it to the environment variable
+                        env.INSTANCE_IP = sh(script: "cd terraform && terraform output -raw -no-color instance_ip", returnStdout: true).trim()
+                        echo "EC2 Instance IP: ${env.INSTANCE_IP}"
+                    }
+                }
             }
         }
-    }
-}
 
         // 3. Build Docker Image
         stage('Build Docker Image') {
@@ -72,7 +73,7 @@ stage('Terraform Apply') {
             }
         }
 
-        // 5. Install Docker on EC2 (Infrastructure Automation)
+        // 5. Install Docker on EC2 and fetch public IP
         stage('Install Docker on EC2') {
             steps {
                 script {
@@ -86,6 +87,10 @@ stage('Terraform Apply') {
                             sudo systemctl start docker &&
                             sudo systemctl enable docker
                         fi
+
+                        # Get the public IP of the EC2 instance and save it to PUBLIC_IP
+                        PUBLIC_IP=\$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+                        echo "Public IP of EC2 Instance: \$PUBLIC_IP"
                         '
                     """
                 }
