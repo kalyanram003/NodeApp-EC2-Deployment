@@ -5,7 +5,7 @@ provider "aws" {
 
 # AWS EC2 Instance configuration
 resource "aws_instance" "node_app_instance" {
-  ami           = "ami-0e86e20da"  # This is an Ubuntu AMI; change based on your region
+  ami           = "ami-0e86e20dae9224db8"  # This is an Ubuntu AMI; change based on your region
   instance_type = "t2.micro"
 
   key_name = "test-key"  # The key pair name, ensure this key is available in AWS
