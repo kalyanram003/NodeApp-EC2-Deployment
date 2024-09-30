@@ -9,10 +9,8 @@ pipeline {
         SONAR_PROJECT_KEY = 'NodeApp-EC2-Deployment'
         SONAR_SCANNER = 'sonar-scanner' // SonarQube Scanner installed in Jenkins
         AWS_CREDENTIALS_ID = 'aws-credentials'  // AWS Credentials ID in Jenkins
+        INSTANCE_IP = '' // Declare as environment variable for global access
     }
-
-    // Declare a global variable to hold the instance IP
-    def instanceIp // Global variable declaration
 
     stages {
         stage('Checkout') {
@@ -46,9 +44,9 @@ pipeline {
                         terraform init
                         terraform apply -auto-approve
                         """
-                        // Capture the instance IP output and assign it to the global variable
-                        instanceIp = sh(script: "cd terraform && terraform output -raw -no-color instance_ip", returnStdout: true).trim()
-                        echo "EC2 Instance IP: ${instanceIp}"
+                        // Capture the instance IP output and assign it to the environment variable
+                        env.INSTANCE_IP = sh(script: "cd terraform && terraform output -raw -no-color instance_ip", returnStdout: true).trim()
+                        echo "EC2 Instance IP: ${env.INSTANCE_IP}"
                     }
                 }
             }
@@ -80,7 +78,7 @@ pipeline {
                 script {
                     // Use the globally captured instance IP
                     sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${instanceIp} '
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.INSTANCE_IP} '
                         if ! command -v docker &> /dev/null
                         then
                             sudo apt-get update &&
@@ -98,9 +96,9 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    sh "ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${instanceIp} 'sudo docker pull ${DOCKER_IMAGE_NAME}:${TAG}'"
-                    sh "ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${instanceIp} 'sudo docker stop node_app || true && sudo docker rm node_app || true'"
-                    sh "ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${instanceIp} 'sudo docker run -p 3000:3000 --name node_app -d ${DOCKER_IMAGE_NAME}:${TAG}'"
+                    sh "ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.INSTANCE_IP} 'sudo docker pull ${DOCKER_IMAGE_NAME}:${TAG}'"
+                    sh "ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.INSTANCE_IP} 'sudo docker stop node_app || true && sudo docker rm node_app || true'"
+                    sh "ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.INSTANCE_IP} 'sudo docker run -p 3000:3000 --name node_app -d ${DOCKER_IMAGE_NAME}:${TAG}'"
                 }
             }
         }
