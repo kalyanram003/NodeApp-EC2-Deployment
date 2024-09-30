@@ -2,13 +2,14 @@ pipeline {
     agent any      
 
     environment {         
-        AWS_EC2_INSTANCE = '54.175.239.228'         
         DOCKER_HUB_CREDENTIAL_ID = 'docker-cred'         
         DOCKER_IMAGE_NAME = 'kamran111/nodejs_demo_app'         
         TAG = 'latest'         
         SSH_KEY_PATH = '/var/jenkins/workspace/test-key.pem'         
         SONAR_PROJECT_KEY = 'NodeApp-EC2-Deployment'
         SONAR_SCANNER = 'sonar-scanner' // SonarQube Scanner installed in Jenkins
+        AWS_CREDENTIALS_ID = 'aws-credentials'  // AWS Credentials ID in Jenkins
+        AWS_EC2_INSTANCE = ''  // Placeholder for EC2 instance IP
     }      
 
     stages {         
@@ -33,7 +34,23 @@ pipeline {
             }
         }
 
-
+        // 2. Terraform Init and Apply
+        stage('Terraform Apply') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID]]) {
+                    script {
+                        sh """
+                        cd terraform
+                        terraform init
+                        terraform apply -auto-approve
+                        """
+                        // Capture the instance IP output
+                        env.AWS_EC2_INSTANCE = sh(script: "terraform output -raw instance_ip", returnStdout: true).trim()
+                        echo "EC2 Instance IP: ${env.AWS_EC2_INSTANCE}"
+                    }
+                }
+            }
+        }
 
         // 3. Build Docker Image
         stage('Build Docker Image') {             
@@ -44,9 +61,7 @@ pipeline {
             }         
         }
 
-  
-
-        // 5. Push Docker Image to DockerHub
+        // 4. Push Docker Image to DockerHub
         stage('Push Docker Image') {             
             steps {                 
                 script {                     
@@ -57,9 +72,7 @@ pipeline {
             }         
         }
 
- 
-
-        // 7. Install Docker on EC2 (Infrastructure Automation)
+        // 5. Install Docker on EC2 (Infrastructure Automation)
         stage('Install Docker on EC2') {             
             steps {                 
                 script {                     
@@ -78,7 +91,7 @@ pipeline {
             }         
         }
 
-        // 8. Deploy on AWS EC2
+        // 6. Deploy on AWS EC2
         stage('Deploy') {             
             steps {                 
                 script {                     
@@ -88,7 +101,5 @@ pipeline {
                 }             
             }         
         }
-
-       
     }      
 }
