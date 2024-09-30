@@ -14,7 +14,7 @@ resource "aws_instance" "node_app_instance" {
     Name = "NodeAppInstance"
   }
 }
-
+ 
 
 # Output the public IP of the created instance
 output "instance_ip" {
