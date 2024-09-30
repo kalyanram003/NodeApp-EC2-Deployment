@@ -1,8 +1,11 @@
-# Use the official Node.js image as base
-FROM node:14
+# Use the official Node.js Alpine image as base
+FROM node:14-alpine
 
 # Set the working directory inside the container
 WORKDIR /app
+
+# Copy package.json and package-lock.json to install dependencies
+COPY package*.json ./
 
 # Install dependencies
 RUN npm install
