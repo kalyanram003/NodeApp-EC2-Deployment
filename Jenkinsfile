@@ -9,7 +9,6 @@ pipeline {
         SONAR_PROJECT_KEY = 'NodeApp-EC2-Deployment'
         SONAR_SCANNER = 'sonar-scanner' // SonarQube Scanner installed in Jenkins
         AWS_CREDENTIALS_ID = 'aws-credentials'  // AWS Credentials ID in Jenkins
-        AWS_EC2_INSTANCE = ''  // Placeholder for EC2 instance IP
     }      
 
     stages {         
@@ -44,9 +43,11 @@ pipeline {
                         terraform init
                         terraform apply -auto-approve
                         """
-                        // Capture the instance IP output
-                        env.AWS_EC2_INSTANCE = sh(script: "terraform output -raw instance_ip", returnStdout: true).trim()
-                        echo "EC2 Instance IP: ${env.AWS_EC2_INSTANCE}"
+                        // Capture the instance IP output in a Groovy variable
+                        def instanceIp = sh(script: "terraform output -raw instance_ip", returnStdout: true).trim()
+                        echo "EC2 Instance IP: ${instanceIp}"
+                        // Pass the instance IP to the environment variable for later use
+                        env.AWS_EC2_INSTANCE = instanceIp
                     }
                 }
             }
@@ -77,7 +78,7 @@ pipeline {
             steps {                 
                 script {                     
                     sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${AWS_EC2_INSTANCE} '
+                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.AWS_EC2_INSTANCE} '
                         if ! command -v docker &> /dev/null                         
                         then                             
                             sudo apt-get update &&                             
@@ -95,9 +96,9 @@ pipeline {
         stage('Deploy') {             
             steps {                 
                 script {                     
-                    sh "ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${AWS_EC2_INSTANCE} 'sudo docker pull ${DOCKER_IMAGE_NAME}:${TAG}'"
-                    sh "ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${AWS_EC2_INSTANCE} 'sudo docker stop node_app || true && sudo docker rm node_app || true'"
-                    sh "ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${AWS_EC2_INSTANCE} 'sudo docker run -p 3000:3000 --name node_app -d ${DOCKER_IMAGE_NAME}:${TAG}'"
+                    sh "ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.AWS_EC2_INSTANCE} 'sudo docker pull ${DOCKER_IMAGE_NAME}:${TAG}'"
+                    sh "ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.AWS_EC2_INSTANCE} 'sudo docker stop node_app || true && sudo docker rm node_app || true'"
+                    sh "ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.AWS_EC2_INSTANCE} 'sudo docker run -p 3000:3000 --name node_app -d ${DOCKER_IMAGE_NAME}:${TAG}'"
                 }             
             }         
         }
