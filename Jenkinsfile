@@ -11,6 +11,9 @@ pipeline {
         AWS_CREDENTIALS_ID = 'aws-credentials'  // AWS Credentials ID in Jenkins
     }
 
+    // Declare a global variable to hold the instance IP
+    def instanceIp // Global variable declaration
+
     stages {
         stage('Checkout') {
             steps {
@@ -43,13 +46,9 @@ pipeline {
                         terraform init
                         terraform apply -auto-approve
                         """
-                        // Capture the instance IP output in a local variable
-                        def instanceIp = sh(script: "terraform output -raw -no-color instance_ip", returnStdout: true).trim()
+                        // Capture the instance IP output and assign it to the global variable
+                        instanceIp = sh(script: "cd terraform && terraform output -raw -no-color instance_ip", returnStdout: true).trim()
                         echo "EC2 Instance IP: ${instanceIp}"
-
-                        // Use instanceIp in the next stage
-                        // Since instanceIp is local to this block, we'll need to pass it to the next stage
-                        return instanceIp // Returning the instance IP for further use
                     }
                 }
             }
@@ -79,8 +78,7 @@ pipeline {
         stage('Install Docker on EC2') {
             steps {
                 script {
-                    // Use the instance IP captured from the previous stage
-                    def instanceIp = sh(script: "terraform output -raw -no-color instance_ip", returnStdout: true).trim()
+                    // Use the globally captured instance IP
                     sh """
                         ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${instanceIp} '
                         if ! command -v docker &> /dev/null
@@ -100,7 +98,6 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    def instanceIp = sh(script: "terraform output -raw -no-color instance_ip", returnStdout: true).trim()
                     sh "ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${instanceIp} 'sudo docker pull ${DOCKER_IMAGE_NAME}:${TAG}'"
                     sh "ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${instanceIp} 'sudo docker stop node_app || true && sudo docker rm node_app || true'"
                     sh "ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${instanceIp} 'sudo docker run -p 3000:3000 --name node_app -d ${DOCKER_IMAGE_NAME}:${TAG}'"
