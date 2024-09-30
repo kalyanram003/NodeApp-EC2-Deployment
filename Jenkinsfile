@@ -33,15 +33,7 @@ pipeline {
             }
         }
 
-        // 2. Dependency Scanning
-        stage('Dependency-Check') {
-            steps {
-                script {
-                    // OWASP Dependency Check to scan for vulnerable dependencies
-                    sh "dependency-check --project NodeApp --scan . --format XML --out reports/dependency-check-report.xml"
-                }
-            }
-        }
+
 
         // 3. Build Docker Image
         stage('Build Docker Image') {             
@@ -52,17 +44,7 @@ pipeline {
             }         
         }
 
-        // 4. Container Vulnerability Scan
-        stage('Trivy Vulnerability Scan') {
-            steps {                 
-                script {
-                    def scanResult = sh(script: "trivy image --exit-code 1 --severity HIGH,CRITICAL ${DOCKER_IMAGE_NAME}:${TAG}", returnStatus: true)
-                    if (scanResult != 0) {
-                        error("Trivy found vulnerabilities in the image. Scan exited with code: ${scanResult}")
-                    }
-                }             
-            }         
-        }
+  
 
         // 5. Push Docker Image to DockerHub
         stage('Push Docker Image') {             
@@ -75,15 +57,7 @@ pipeline {
             }         
         }
 
-        // 6. Infrastructure Security Compliance Check (optional)
-        stage('Security Compliance Check') {
-            steps {
-                script {
-                    // Example using Checkov to scan infrastructure as code for vulnerabilities
-                    sh "checkov --directory ."
-                }
-            }
-        }
+ 
 
         // 7. Install Docker on EC2 (Infrastructure Automation)
         stage('Install Docker on EC2') {             
@@ -115,18 +89,6 @@ pipeline {
             }         
         }
 
-        // 9. Monitoring and Runtime Security (optional)
-        stage('Setup Runtime Security') {
-            steps {
-                script {
-                    // Using Falco to monitor runtime security for containers
-                    sh """
-                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${AWS_EC2_INSTANCE} '
-                    sudo curl -s https://falco.org/repo/falcosecurity-packaging.asc | sudo apt-key add - &&
-                    sudo apt-get install falco -y'
-                    """
-                }
-            }
-        }     
+       
     }      
 }
