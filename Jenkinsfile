@@ -33,32 +33,25 @@ pipeline {
             }
         }
 
-// 2. Terraform Apply
-stage('Terraform Apply') {
-    steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID]]) {
-            script {
-                sh """
-                cd terraform
-                terraform init -no-color
-                terraform apply -auto-approve -no-color
-                """
-                // Capture the instance IP without filtering
-                def instanceIp = sh(script: "terraform output -raw instance_ip", returnStdout: true).trim()
-                echo "Raw EC2 Instance IP: '${instanceIp}'"
-                // Now apply filtering
-                instanceIp = instanceIp.replaceAll('[^\\d\\.]+','')
-                if (!instanceIp || instanceIp == "") {
-                    error("Failed to capture EC2 instance IP. Please check Terraform outputs.")
-                } else {
-                    echo "Filtered EC2 Instance IP: '${instanceIp}'"
-                    env.AWS_EC2_INSTANCE = instanceIp
+        // 2. Terraform Init and Apply
+        stage('Terraform Apply') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID]]) {
+                    script {
+                        sh """
+                        cd terraform
+                        terraform init
+                        terraform apply -auto-approve
+                        """
+                        // Capture the instance IP output in a Groovy variable
+                        def instanceIp = sh(script: "terraform output -raw instance_ip", returnStdout: true).trim()
+                        echo "EC2 Instance IP: ${instanceIp}"
+                        // Pass the instance IP to the environment variable for later use
+                        env.AWS_EC2_INSTANCE = instanceIp
+                    }
                 }
             }
         }
-    }
-}
-
 
         // 3. Build Docker Image
         stage('Build Docker Image') {             
@@ -88,13 +81,10 @@ stage('Terraform Apply') {
                         ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.AWS_EC2_INSTANCE} '
                         if ! command -v docker &> /dev/null                         
                         then                             
-                            echo "Installing Docker..."
                             sudo apt-get update &&                             
-                            sudo apt-get install -y docker-ce
+                            sudo apt-get install -y docker.io
                             sudo systemctl start docker &&                             
                             sudo systemctl enable docker                         
-                        else
-                            echo "Docker is already installed."
                         fi
                         '
                     """                 
@@ -106,13 +96,8 @@ stage('Terraform Apply') {
         stage('Deploy') {             
             steps {                 
                 script {                     
-                    echo "Pulling the Docker image on the EC2 instance..."
                     sh "ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.AWS_EC2_INSTANCE} 'sudo docker pull ${DOCKER_IMAGE_NAME}:${TAG}'"
-
-                    echo "Stopping and removing any existing container..."
                     sh "ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.AWS_EC2_INSTANCE} 'sudo docker stop node_app || true && sudo docker rm node_app || true'"
-
-                    echo "Starting the new container..."
                     sh "ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.AWS_EC2_INSTANCE} 'sudo docker run -p 3000:3000 --name node_app -d ${DOCKER_IMAGE_NAME}:${TAG}'"
                 }             
             }         
