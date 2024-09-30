@@ -15,6 +15,7 @@ resource "aws_instance" "node_app_instance" {
   }
 }
 
+
 # Output the public IP of the created instance
 output "instance_ip" {
   value = aws_instance.node_app_instance.public_ip
