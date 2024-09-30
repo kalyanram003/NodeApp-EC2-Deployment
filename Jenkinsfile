@@ -44,7 +44,7 @@ pipeline {
                         terraform apply -auto-approve
                         """
                         // Capture the instance IP output in a Groovy variable
-                        def instanceIp = sh(script: "terraform output -raw instance_ip", returnStdout: true).trim()
+                        def instanceIp = sh(script: "terraform output -raw -no-color instance_ip", returnStdout: true).trim()
                         echo "EC2 Instance IP: ${instanceIp}"
                         // Pass the instance IP to the environment variable for later use
                         env.AWS_EC2_INSTANCE = instanceIp
