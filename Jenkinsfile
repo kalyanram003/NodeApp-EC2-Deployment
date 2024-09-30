@@ -85,10 +85,13 @@ pipeline {
                         ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.AWS_EC2_INSTANCE} '
                         if ! command -v docker &> /dev/null                         
                         then                             
+                            echo "Installing Docker..."
                             sudo apt-get update &&                             
                             sudo apt-get install -y docker-ce
                             sudo systemctl start docker &&                             
                             sudo systemctl enable docker                         
+                        else
+                            echo "Docker is already installed."
                         fi
                         '
                     """                 
@@ -100,8 +103,13 @@ pipeline {
         stage('Deploy') {             
             steps {                 
                 script {                     
+                    echo "Pulling the Docker image on the EC2 instance..."
                     sh "ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.AWS_EC2_INSTANCE} 'sudo docker pull ${DOCKER_IMAGE_NAME}:${TAG}'"
+
+                    echo "Stopping and removing any existing container..."
                     sh "ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.AWS_EC2_INSTANCE} 'sudo docker stop node_app || true && sudo docker rm node_app || true'"
+
+                    echo "Starting the new container..."
                     sh "ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_PATH} ubuntu@${env.AWS_EC2_INSTANCE} 'sudo docker run -p 3000:3000 --name node_app -d ${DOCKER_IMAGE_NAME}:${TAG}'"
                 }             
             }         
