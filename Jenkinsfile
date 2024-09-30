@@ -33,25 +33,29 @@ pipeline {
             }
         }
 
-        // 2. Terraform Init and Apply
-        stage('Terraform Apply') {
-            steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID]]) {
-                    script {
-                        sh """
-                        cd terraform
-                        terraform init
-                        terraform apply -auto-approve
-                        """
-                        // Capture the instance IP output in a Groovy variable
-                        def instanceIp = sh(script: "terraform output -raw instance_ip", returnStdout: true).trim()
-                        echo "EC2 Instance IP: ${instanceIp}"
-                        // Pass the instance IP to the environment variable for later use
-                        env.AWS_EC2_INSTANCE = instanceIp
-                    }
+stage('Terraform Apply') {
+    steps {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID]]) {
+            script {
+                sh """
+                cd terraform
+                terraform init
+                terraform apply -auto-approve
+                """
+                // Capture the instance IP, handling any non-ASCII characters or warnings
+                def instanceIp = sh(script: "terraform output -raw instance_ip", returnStdout: true).trim().replaceAll('[^\\d\\.]+','')
+                if (!instanceIp || instanceIp == "") {
+                    error("Failed to capture EC2 instance IP. Please check Terraform outputs.")
+                } else {
+                    echo "Filtered EC2 Instance IP: '${instanceIp}'"
+                    // Set environment variable for later stages
+                    env.AWS_EC2_INSTANCE = instanceIp
                 }
             }
         }
+    }
+}
+
 
         // 3. Build Docker Image
         stage('Build Docker Image') {             
