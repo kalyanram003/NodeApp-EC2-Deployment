@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         AWS_EC2_INSTANCE = '13.233.212.129'
-        DOCKER_HUB_CREDENTIAL_ID = 'docker-cred'
+        DOCKER_HUB_CREDENTIAL_ID = 'devopsdemo'
         DOCKER_IMAGE_NAME = 'kamran111/nodejs_demo_app'
         TAG = 'latest'
         SSH_KEY_PATH = '/var/jenkins/workspace/test-key.pem'
