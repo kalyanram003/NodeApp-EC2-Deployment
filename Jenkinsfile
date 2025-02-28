@@ -6,7 +6,7 @@ pipeline {
         DOCKER_HUB_CREDENTIAL_ID = 'devopsdemo'
         DOCKER_IMAGE_NAME = 'kamran111/nodejs_demo_app'
         TAG = 'latest'
-        SSH_KEY_PATH = '/var/jenkins/workspace/test-key.pem'
+        SSH_KEY_PATH = 'C:\Users\ASUS\Downloads\dev-prac.pem'
         SONAR_PROJECT_KEY = 'NodeApp-EC2-Deployment'
         SONAR_SCANNER = 'sonar-scanner' // SonarQube Scanner installed in Jenkins
         AWS_CREDENTIALS_ID = 'aws-credentials'  // AWS Credentials ID in Jenkins
